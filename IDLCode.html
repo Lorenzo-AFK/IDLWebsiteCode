@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <title>Video Description</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            text-align: justify;
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+        }
+
+        .upload-section {
+            display: flex;
+            align-items: center;
+        }
+        .upload-section img {
+            width: 40px;
+            height: 40px;
+            margin-right: 10px;
+        }
+        .upload-section input[type="file"] {
+            margin-right: 10px;
+        }
+        .upload-section button {
+            background-color: green;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .upload-section button:hover {
+            background-color: darkgreen;
+        }
+
+        #codeSnippet {
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Space between boxes */
+            margin-top: 20px;
+        }
+
+        .snippet-box {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border: 1px solid #ccc;
+            white-space: pre-wrap;
+            border-radius: 5px;
+            position: relative; /* Allow positioning of the button */
+        }
+
+        .copyBtn {
+            background-color: blue;
+            color: white;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+            position: absolute; /* Position it inside the box */
+            right: 10px; /* Align to the right */
+            top: 10px; /* Align to the top */
+        }
+    </style>
+</head>
+<body>
+
+  <!-- Container to show the copy-paste code snippet -->
+  <div id="codeSnippet"></div>
+
+  <div class="upload-section">
+      <img src="excel.png" alt="Excel Icon">
+      <input type="file" id="fileUpload" accept=".xlsx, .xls">
+      <button id="submitBtn">Submit</button>
+  </div>
+
+  <script>
+    document.getElementById('submitBtn').addEventListener('click', function() {
+        const fileInput = document.getElementById('fileUpload');
+        const file = fileInput.files[0];
+        if (!file) {
+            alert("Please upload an Excel file.");
+            return;
+        }
+
+        // Read Excel file and extract data
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+
+            // Convert sheet data to JSON
+            const sheetData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+
+            // Clear previous snippets
+            const codeSnippetDiv = document.getElementById('codeSnippet');
+            codeSnippetDiv.innerHTML = '';
+
+            // Iterate over the rows and generate HTML for each
+            sheetData.forEach((row, index) => {
+                if (index === 0) return; // Skip the header row if it exists
+                const title = row[0];      // Column A
+                const embedUrl = row[1];   // Column B
+                const description = row[2]; // Column C
+
+                if (title && embedUrl && description) {
+                    const snippet = generateCodeSnippet(title, embedUrl, description);
+                    const snippetBox = document.createElement('div');
+                    snippetBox.className = 'snippet-box';
+                    snippetBox.textContent = snippet;
+
+                    // Create a copy button for each snippet
+                    const copyButton = document.createElement('button');
+                    copyButton.className = 'copyBtn';
+                    copyButton.textContent = 'Copy Code';
+                    copyButton.onclick = function() {
+                        copyToClipboard(snippet);
+                    };
+
+                    snippetBox.appendChild(copyButton);
+                    codeSnippetDiv.appendChild(snippetBox);
+                }
+            });
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
+
+    // Function to generate a copy-paste HTML code snippet
+    function generateCodeSnippet(title, embedUrl, description) {
+        return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            text-align: justify;
+        }
+        h1 {
+            font-size: 24px;
+            text-align: center;
+        }
+        iframe {
+            margin-top: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #464646;
+            width: 100%;
+            height: 442px;
+        }
+    </style>
+</head>
+<body>
+    <h1>${title}</h1>
+    <iframe src="${embedUrl}" frameborder="0" allowfullscreen></iframe>
+    <p>${description}</p>
+</body>
+</html>`.trim();
+    }
+
+    // Function to copy a specific snippet to clipboard
+    function copyToClipboard(snippet) {
+        // Create a temporary textarea to hold the snippet for copying
+        const tempTextarea = document.createElement('textarea');
+        tempTextarea.value = snippet;
+        document.body.appendChild(tempTextarea);
+        tempTextarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempTextarea); // Clean up the textarea
+
+        alert("Code snippet copied to clipboard!");
+    }
+  </script>
+</body>
+</html>
